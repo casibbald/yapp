@@ -1,18 +1,38 @@
+use crate::controllers;
+#[allow(unused_imports)] use crate::tasks;
 use async_trait::async_trait;
 use loco_rs::{
     Result,
     app::{AppContext, Hooks},
     bgworker::Queue,
     boot::{BootResult, StartMode, create_app},
+    config::Config,
     controller::AppRoutes,
     environment::Environment,
     task::Tasks,
 };
 
-use crate::controllers;
-#[allow(unused_imports)] use crate::tasks;
-
 pub struct App;
+
+impl App {
+    #[allow(clippy::redundant_closure)]
+    #[allow(clippy::missing_panics_doc)]
+    #[allow(clippy::missing_errors_doc)]
+    pub async fn load_config(environment: &Environment) -> Result<Config> {
+        let config_path = format!("{environment}");
+        println!("Loading configuration from path: {config_path}");
+        let config_contents = tokio::fs::read_to_string(config_path).await?;
+        let config = serde_yaml::from_str(&config_contents)
+            .map_err(|e| {
+                eprintln!("Failed to parse config: {e}");
+                loco_rs::Error::from(Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+            })?;
+        println!("Loaded config: {}", serde_json::to_string_pretty(&config).unwrap());
+        Ok(config)
+    }
+}
+
+
 #[async_trait]
 impl Hooks for App {
     fn app_name() -> &'static str {
